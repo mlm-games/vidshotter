@@ -131,7 +131,7 @@ impl Quality {
 #[command(
     name = "vidshotter",
     author = "MLM Games",
-    version = "1.0.2",
+    version = "1.0.3",
     about = "Extract equally-spaced screenshots from videos or GIFs",
     long_about = "A fast and parallel screenshot extractor that uses FFmpeg to capture equally-spaced frames from video files or GIFs."
 )]
