@@ -1,6 +1,6 @@
 [package]
 name = "vidshotter"
-version = "1.0.1"
+version = "1.0.2"
 edition = "2021"
 authors = ["MLM Games"]
 description = "Extract equally-spaced screenshots from videos or GIFs"
