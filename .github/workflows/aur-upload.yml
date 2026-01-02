@@ -1,0 +1,68 @@
+name: Publish to AUR
+
+on:
+  release:
+    types: [published]
+  workflow_dispatch:
+
+jobs:
+  update-aur:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Get version and prepare PKGBUILD
+        id: prep
+        run: |
+          set -euo pipefail
+          
+          if [[ "${{ github.event_name }}" == "release" ]]; then
+            VERSION="${{ github.event.release.tag_name }}"
+          else
+            VERSION=$(curl -sf "https://api.github.com/repos/${{ github.repository }}/releases/latest" | jq -r '.tag_name')
+          fi
+          VERSION="${VERSION#v}"
+          
+          # Download the Linux binary to compute hash
+          wget -O vidshotter-linux-x86_64 "https://github.com/${{ github.repository }}/releases/download/v${VERSION}/vidshotter-linux-x86_64"
+          HASH=$(sha256sum vidshotter-linux-x86_64 | cut -d' ' -f1)
+          
+          # Generate PKGBUILD
+          cat > PKGBUILD << 'EOF'
+          # Maintainer: MLM Games <gfxoxinzh@mozmail.com>
+          pkgname=vidshotter-bin
+          pkgver=VERSION_PLACEHOLDER
+          pkgrel=1
+          pkgdesc="Fast CLI tool to extract equally-spaced screenshots from videos or GIFs using FFmpeg"
+          arch=('x86_64')
+          url="https://github.com/mlm-games/vidshotter"
+          license=('GPL-3.0-only')
+          depends=('ffmpeg')
+          provides=('vidshotter')
+          conflicts=('vidshotter')
+          source=("vidshotter-${pkgver}::https://github.com/mlm-games/vidshotter/releases/download/v${pkgver}/vidshotter-linux-x86_64")
+          sha256sums=('HASH_PLACEHOLDER')
+          
+          package() {
+            install -Dm755 "${srcdir}/vidshotter-${pkgver}" "${pkgdir}/usr/bin/vidshotter"
+          }
+          EOF
+          
+          # Replace placeholders
+          sed -i "s/VERSION_PLACEHOLDER/${VERSION}/g" PKGBUILD
+          sed -i "s/HASH_PLACEHOLDER/${HASH}/g" PKGBUILD
+          
+          echo "version=$VERSION" >> "$GITHUB_OUTPUT"
+          
+          echo "Generated PKGBUILD:"
+          cat PKGBUILD
+
+      - name: Publish to AUR
+        uses: mlm-games/aur-deploy-action@master
+        with:
+          pkgbuild: ./PKGBUILD
+          auto_pkgrel: true
+          commit_username: MLM-stuff
+          commit_email: gfxoxinzh@mozmail.com
+          ssh_private_key: ${{ secrets.AUR_SSH_PRIVATE_KEY }}
+          commit_message: "Update to v${{ steps.prep.outputs.version }}"
